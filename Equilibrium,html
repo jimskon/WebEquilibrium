@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0px;
+      }
+    </style>
+  </head>
+  <body>
+<h3 text="blue">Ball Equilibrium Experiment</h3>
+Frictionless, lossless system. 
+All balls start at the same speed. Ball mass is based on 2D volume.
+    <form name="menuform">
+Enter initial speed: <input type="text" name="startSpeed"â€>
+<input type="button" value="create" onClick="startAnimation();">
+</form>
+    <div id="container"></div>
+    <script src="konva.js"></script>
+    <script defer="defer">
+
+      var balls = new Array;
+      var ballMax = 40;
+      var ballSize = 40;
+      var stageW = 1200;
+      var stageH = 500;
+      var maxSpeed = 4;
+      var maxRadius = 40;
+      var minRadius = 2;
+
+      function distance(a,b) {
+        var ax = a.getX();
+        var ay = a.getY();
+        var bx = b.getX();
+        var by = b.getY();
+
+	var dist = Math.sqrt(Math.pow(bx-ax,2)+Math.pow(by-ay,2)); 
+	return dist;
+      }
+      function nudge(s,dx,dy) {
+	s.setX(s.getX()+dx);
+	s.setY(s.getY()+dy);
+      }
+      // return true if c2 had to be moved
+      function separate(c1, c2) {
+        var dist = distance(c1,c2);
+        var move = false;
+
+        while (dist < c1.getRadius()+c2.getRadius()) {
+          var x1 = c1.getX();
+          var y1 = c1.getY();
+          var x2 = c2.getX();
+          var y2 = c2.getY();      
+	  var dx = 0, dy = 0;
+          dx = (x2-x1)/dist;
+          dy = (y2-y1)/dist;
+          nudge(c2,dx,dy);
+          move = true;
+          dist = distance(c1,c2);
+        }
+
+        return move;
+
+      };
+      // keep checking until nothing needs moving
+      function checkCollisions(c) {
+          for (var i=0 ; i < ballMax ; i++) {
+	     if (balls[i] != c) {
+               if (separate(c,balls[i])) {
+                  checkCollisions(balls[i]);
+               }
+             }
+          }
+      }
+
+
+      function checkCollision(c1, c2) {
+        var dist = distance(c1,c2);
+	return (dist <= c1.getRadius()+c2.getRadius())
+      }
+
+      function collide(ball, ball2) {
+        separate(ball, ball2);
+	var dx = ball.getX()-ball2.getX();
+	var dy = ball.getY()-ball2.getY();
+	var collisionision_angle = Math.atan2(dy, dx);
+	var magnitude_1 = Math.sqrt(ball.dx*ball.dx+ball.dy*ball.dy);
+	var magnitude_2 = Math.sqrt(ball2.dx*ball2.dx+ball2.dy*ball2.dy);
+	var direction_1 = Math.atan2(ball.dy, ball.dx);
+	var direction_2 = Math.atan2(ball2.dy, ball2.dx);
+	new_dx_1 = magnitude_1*Math.cos(direction_1-collisionision_angle);
+	new_dy_1 = magnitude_1*Math.sin(direction_1-collisionision_angle);
+	new_dx_2 = magnitude_2*Math.cos(direction_2-collisionision_angle);
+	new_dy_2 = magnitude_2*Math.sin(direction_2-collisionision_angle);
+	final_dx_1 = ((ball.mass-ball2.mass)*new_dx_1+(ball2.mass+ball2.mass)*new_dx_2)/(ball.mass+ball2.mass);
+	final_dx_2 = ((ball.mass+ball.mass)*new_dx_1+(ball2.mass-ball.mass)*new_dx_2)/(ball.mass+ball2.mass);
+	final_dy_1 = new_dy_1;
+	final_dy_2 = new_dy_2;
+	ball.dx = Math.cos(collisionision_angle)*final_dx_1+Math.cos(collisionision_angle+Math.PI/2)*final_dy_1;
+	ball.dy = Math.sin(collisionision_angle)*final_dx_1+Math.sin(collisionision_angle+Math.PI/2)*final_dy_1;
+	ball2.dx = Math.cos(collisionision_angle)*final_dx_2+Math.cos(collisionision_angle+Math.PI/2)*final_dy_2;
+	ball2.dy = Math.sin(collisionision_angle)*final_dx_2+Math.sin(collisionision_angle+Math.PI/2)*final_dy_2;
+        updateBall(ball);
+      }
+ 
+
+      function updateBalls(frame) {
+                 
+        for (var i = 0; i < ballMax ; i++) {
+           for (var j = i+1; j < ballMax ; j++) {
+              if (checkCollision(balls[i],balls[j])) {
+		collide(balls[i],balls[j]);
+              }
+           }
+   	updateBall(balls[i]);
+        }
+      }
+
+      function updateBall(c) {
+        var x = c.getX();
+        var y = c.getY();
+        var w = c.getWidth()/2;
+        var h = c.getHeight()/2;
+        var bottom = stage.getHeight();
+        var side = stage.getWidth();
+        x += c.dx;
+        y += c.dy;
+
+	if (x < w) {
+          x = w;
+	  c.dx=-c.dx;
+	} else if (x > side-w) {
+          x = side-w;
+	  c.dx=-c.dx;
+	}
+	if (y < h) {
+          y = h;
+	  c.dy=-c.dy;
+	} else if (y > bottom-h) {
+          y = bottom-h;
+	  c.dy=-c.dy;
+	}
+        c.setX(x);
+        c.setY(y);
+
+      }
+     function generateBalls(balls,count) {
+        for ( var i = 0; i < count; i++) {
+          balls[i] = new Konva.Circle({
+	        y : 10,
+            x : 10,
+            radius: minRadius+Math.random()*(maxRadius-minRadius),
+            fill:"rgb("+
+                      Math.floor(Math.random()*256)+","+
+                      Math.floor(Math.random()*256)+","+
+                      Math.floor(Math.random()*256)+")",
+            stroke: 'black',
+            strokeWidth: 2,
+            draggable: false
+         });
+            layer.add(balls[i]);
+        }
+
+      }
+
+      function placeBalls(balls,count,speed) {
+         for ( var i = 0; i < count; i++) { 
+            balls[i].setX(Math.random()*stageW);
+            balls[i].setY(Math.random()*stageH);
+            balls[i].dx = Math.random()*speed;
+            balls[i].dy = speed-balls[i].dx;
+            balls[i].mass = Math.PI*Math.pow(balls[i].getRadius(),2);
+
+	}
+      }
+
+
+      var stage = new Konva.Stage({
+        container: 'container',
+        width: stageW,
+        height: stageH
+      });
+      var layer = new Konva.Layer();
+
+      generateBalls(balls,ballMax);
+
+      stage.add(layer);
+
+      var anim = new Konva.Animation(function (frame) {updateBalls(frame);}, layer);
+
+      anim.start();
+      window.document.menuform.startSpeed.value = 5;
+      startAnimation();
+
+  function startAnimation() {
+      startSpeed=window.document.menuform.startSpeed.value;
+
+      placeBalls(balls,ballMax,startSpeed);
+
+      // Make sure nothing starts overlapping
+      for (var i=0 ; i < ballMax ; i++) {
+         checkCollisions(balls[i]);
+      }
+  }
+
+
+    </script>
+  </body>
+</html>
